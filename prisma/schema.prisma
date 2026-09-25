@@ -16,6 +16,9 @@ model Todo {
   userId      String   @map("user_id") @db.Uuid
   title       String
   isCompleted Boolean  @default(false) @map("is_completed")
+  // アイゼンハワーマトリクスの2軸
+  isUrgent    Boolean  @default(false) @map("is_urgent")
+  isImportant Boolean  @default(false) @map("is_important")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("todos")
