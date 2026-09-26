@@ -8,6 +8,8 @@ export type Todo = {
   id: string;
   title: string;
   isCompleted: boolean;
+  isUrgent: boolean;
+  isImportant: boolean;
   createdAt: string;
 };
 
@@ -15,7 +17,11 @@ export type ErrorResponse = { error: string };
 
 export type GetTodosResponse = { todos: Todo[] };
 
-export type CreateTodoRequest = { title: string };
+export type CreateTodoRequest = {
+  title: string;
+  isUrgent?: boolean;
+  isImportant?: boolean;
+};
 export type CreateTodoResponse = { todo: Todo };
 
 // ログイン中のユーザーの TODO 一覧（新しい順）
@@ -45,7 +51,15 @@ export async function POST(request: NextRequest) {
     return badRequest(`タイトルは${TITLE_MAX_LENGTH}文字以内で入力してください。`);
   }
 
-  const todo = await prisma.todo.create({ data: { userId, title } });
+  // 緊急度・重要度は省略可能（省略時は false）
+  const { isUrgent = false, isImportant = false } = body ?? {};
+  if (typeof isUrgent !== "boolean" || typeof isImportant !== "boolean") {
+    return badRequest("isUrgent と isImportant は true か false で指定してください。");
+  }
+
+  const todo = await prisma.todo.create({
+    data: { userId, title, isUrgent, isImportant },
+  });
 
   return NextResponse.json<CreateTodoResponse>(
     { todo: toTodo(todo) },

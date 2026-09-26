@@ -5,7 +5,12 @@ import { getCurrentUserId } from "@/lib/supabase/server";
 import { toTodo, unauthorized, badRequest, notFound } from "@/lib/todos";
 import type { Todo } from "../route";
 
-export type UpdateTodoRequest = { isCompleted: boolean };
+// 変更したい項目だけを送る（1つ以上必須）
+export type UpdateTodoRequest = Partial<
+  Pick<Todo, "isCompleted" | "isUrgent" | "isImportant">
+>;
+
+const UPDATABLE_FIELDS = ["isCompleted", "isUrgent", "isImportant"] as const;
 export type UpdateTodoResponse = { todo: Todo };
 
 export type DeleteTodoResponse = { id: string };
@@ -21,7 +26,7 @@ function isRecordNotFound(error: unknown) {
   );
 }
 
-// 完了状態を更新
+// 完了状態・緊急度・重要度を更新
 export async function PATCH(
   request: NextRequest,
   ctx: RouteContext<"/api/todos/[id]">,
@@ -32,19 +37,28 @@ export async function PATCH(
   const { id } = await ctx.params;
   if (!UUID_PATTERN.test(id)) return notFound();
 
-  const body = (await request.json().catch(() => null)) as
-    | Partial<UpdateTodoRequest>
-    | null;
-  if (typeof body?.isCompleted !== "boolean") {
-    return badRequest("isCompleted は true か false で指定してください。");
+  const body = (await request.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  const data: UpdateTodoRequest = {};
+  for (const field of UPDATABLE_FIELDS) {
+    const value = body?.[field];
+    if (value === undefined) continue;
+    if (typeof value !== "boolean") {
+      return badRequest(`${field} は true か false で指定してください。`);
+    }
+    data[field] = value;
+  }
+  if (Object.keys(data).length === 0) {
+    return badRequest(
+      "isCompleted・isUrgent・isImportant のいずれかを指定してください。",
+    );
   }
 
   try {
     // user_id も条件に含め、他人の TODO は更新できないようにする
-    const todo = await prisma.todo.update({
-      where: { id, userId },
-      data: { isCompleted: body.isCompleted },
-    });
+    const todo = await prisma.todo.update({ where: { id, userId }, data });
     return NextResponse.json<UpdateTodoResponse>({ todo: toTodo(todo) });
   } catch (error) {
     if (isRecordNotFound(error)) return notFound();

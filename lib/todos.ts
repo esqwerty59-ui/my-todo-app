@@ -8,6 +8,8 @@ export function toTodo(row: TodoRow): Todo {
     id: row.id,
     title: row.title,
     isCompleted: row.isCompleted,
+    isUrgent: row.isUrgent,
+    isImportant: row.isImportant,
     createdAt: row.createdAt.toISOString(),
   };
 }
